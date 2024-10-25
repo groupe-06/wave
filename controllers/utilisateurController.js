@@ -56,6 +56,11 @@ export const login = async (req, res) => {
         if (!user) {
             return res.status(401).json({ message: 'Numéro de téléphone ou mot de passe incorrect' });
         }
+        // Vérifier si le compte est actif
+        const compte = await Compte.findOne({ utilisateur: user._id });
+        if (!compte || compte.etat !== 'ACTIF') {
+            return res.status(403).json({ message: 'Compte inactif, veuillez contacter l\'administration' });
+        }
         const isMatch = await bcrypt.compare(mdp.trim(), user.mdp);
         if (!isMatch) {
             return res.status(401).json({ message: 'Numéro de téléphone ou mot de passe incorrect' });
