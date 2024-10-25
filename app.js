@@ -5,7 +5,8 @@ import mongoDBConnexion from "./db/mongo-connexion.js";
 import typeTransactionRoute from "./routes/typeTransactionRoute.js";
 import transactionClientRoute from "./routes/tranfertRoute.js";
 import { generateTestData } from "./utils/userFakers.js";
-
+import userRoute from "./routes/userRoute.js";
+import compteRoute from "./routes/compteRoute.js";
 
 dotenv.config();
 
@@ -20,6 +21,9 @@ mongoDBConnexion();
 
 app.use(`${BASE_URI}/type-transaction`, typeTransactionRoute);
 app.use(`${BASE_URI}/client`, transactionClientRoute);
+app.use(`${BASE_URI}/user`, userRoute);
+app.use(`${BASE_URI}/compte`, compteRoute);
+
 
 
 app.post(`${BASE_URI}/generate-test-data`, async (req, res) => {
