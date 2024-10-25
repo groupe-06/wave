@@ -6,6 +6,7 @@ import typeTransactionRoute from "./routes/typeTransactionRoute.js";
 import userRoute from "./routes/userRoute.js";
 import compteRoute from "./routes/compteRoute.js";
 import transactionRoutes from './routes/transactionRoutes.js';
+import  notificationRouter from './routes/notificationRoutes.js'
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
@@ -21,6 +22,8 @@ app.use(`${BASE_URI}/type-transaction`, typeTransactionRoute);
 app.use(`${BASE_URI}/user`, userRoute);
 app.use(`${BASE_URI}/compte`, compteRoute);
 app.use(`${BASE_URI}/Transactions`, transactionRoutes);
+app.use(`${BASE_URI}/Notifications`, notificationRouter);
+
 app.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
 })
