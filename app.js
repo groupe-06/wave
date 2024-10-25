@@ -10,7 +10,9 @@ const PORT = process.env.PORT || 5000;
 const app = express();
 const BASE_URI = process.env.BASE_URI;
 
-app.use(cors());
+// Express backend configuration
+app.use(cors({ origin: 'http://localhost:4200' })); // Remplacez par l'URL de votre application Angular
+
 app.use(express.json());
 
 mongoDBConnexion();
