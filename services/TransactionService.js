@@ -6,7 +6,8 @@ import TypeTransaction from '../models/typeTransaction.js';
 import Notification from '../models/notification.js';
 
 class TransactionService {
-    static async createNotification(userId, message, type) {
+    static async createNotification(userId, message, type, phoneNumber) {
+        // Créer la notification dans la base de données
         const notification = new Notification({
             compte: userId,
             message,
@@ -15,8 +16,17 @@ class TransactionService {
             date: new Date()
         });
         await notification.save();
-    }
 
+        // Envoyer un SMS si un numéro de téléphone est fourni
+        if (phoneNumber) {
+            try {
+                await smsService.sendSms(phoneNumber, message);
+            } catch (error) {
+                console.error('Erreur lors de l\'envoi du SMS:', error);
+                // On ne bloque pas la transaction si l'envoi du SMS échoue
+            }
+        }
+    }
     static async executeTransaction(data, userId) {
         const session = await mongoose.startSession();
         session.startTransaction();
@@ -188,6 +198,99 @@ class TransactionService {
             session.endSession();
         }
     }
+    static async cancelTransaction(transactionId, userId) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        
+        try {
+            // Vérifier que l'utilisateur est ADMIN ou AGENT
+            const connectedUser = await Utilisateur.findById(userId);
+            if (!connectedUser || (connectedUser.role !== 'ADMIN' && connectedUser.role !== 'AGENT')) {
+                throw new Error("Seuls les administrateurs et les agents peuvent annuler une transaction");
+            }
+
+            // Récupérer la transaction
+            const transaction = await Transaction.findById(transactionId)
+                .populate('sender')
+                .populate('receiver')
+                .populate('TypeTransaction');
+
+            if (!transaction) {
+                throw new Error("Transaction non trouvée");
+            }
+
+            // Vérifier que c'est un transfert
+            if (transaction.TypeTransaction.nom !== 'transfert') {
+                throw new Error("Seuls les transferts peuvent être annulés");
+            }
+
+            // Vérifier que la transaction n'est pas déjà annulée
+            if (transaction.etat === 'ANNULE') {
+                throw new Error("Cette transaction a déjà été annulée");
+            }
+
+            // Récupérer les comptes
+            const receiverAccount = await Compte.findById(transaction.receiver).populate('utilisateur');
+            const senderAccount = await Compte.findById(transaction.sender).populate('utilisateur');
+
+            // Vérifier si le receiver a assez d'argent pour l'annulation
+            if (receiverAccount.solde < transaction.montant) {
+                throw new Error("Annulation impossible : solde insuffisant sur le compte destinataire");
+            }
+
+            // Calculer le montant à rembourser en prenant en compte les frais
+            const montantARembourser = transaction.fraisInclus ? 
+                transaction.montant + transaction.montantFrais : 
+                transaction.montant;
+
+            // Effectuer l'annulation
+            receiverAccount.solde -= transaction.montant;
+            senderAccount.solde += montantARembourser;
+
+            // Mettre à jour la transaction
+            transaction.etat = 'ANNULER';
+            transaction.dateAnnulation = new Date();
+            transaction.annulePar = userId;
+
+            // Sauvegarder les modifications
+            await receiverAccount.save({ session });
+            await senderAccount.save({ session });
+            await transaction.save({ session });
+
+            // Créer les notifications
+            await this.createNotification(
+                senderAccount.utilisateur._id,
+                `Annulation reçue : le transfert de ${transaction.montant} a été annulé. Nouveau solde: ${senderAccount.solde}`,
+                'TRANSFERT_ANNULE'
+            );
+
+            await this.createNotification(
+                receiverAccount.utilisateur._id,
+                `Annulation du transfert de ${transaction.montant} reçu de ${senderAccount.utilisateur.prenom} ${senderAccount.utilisateur.nom}. Nouveau solde: ${receiverAccount.solde}`,
+                'TRANSFERT_ANNULE'
+            );
+
+            await session.commitTransaction();
+
+            return {
+                success: true,
+                message: "Transaction annulée avec succès",
+                details: {
+                    transactionId: transaction._id,
+                    montantRembourse: montantARembourser,
+                    nouveauSoldeSender: senderAccount.solde,
+                    nouveauSoldeReceiver: receiverAccount.solde
+                }
+            };
+
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
+        }
+    }
+    
 }
 
 export default TransactionService;
