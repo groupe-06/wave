@@ -4,27 +4,35 @@ import Compte from '../models/compte.js';
 import Transaction from '../models/transaction.js';
 import TypeTransaction from '../models/typeTransaction.js';
 import Notification from '../models/notification.js';
-
+import  SmsService from  '../services/SmsService.js'
 class TransactionService {
-    static async createNotification(userId, message, type, phoneNumber) {
-        // Créer la notification dans la base de données
-        const notification = new Notification({
-            compte: userId,
-            message,
-            type,
-            etat: false,
-            date: new Date()
-        });
-        await notification.save();
+    static async createNotification(userId, message, type, phoneNumber = null) {
+        try {
+            // Créer la notification dans la base de données
+            const notification = new Notification({
+                compte: userId,
+                message,
+                type,
+                etat: false,
+                date: new Date()
+            });
+            await notification.save();
 
-        // Envoyer un SMS si un numéro de téléphone est fourni
-        if (phoneNumber) {
-            try {
-                await smsService.sendSms(phoneNumber, message);
-            } catch (error) {
-                console.error('Erreur lors de l\'envoi du SMS:', error);
-                // On ne bloque pas la transaction si l'envoi du SMS échoue
+            // Si un numéro de téléphone est fourni, on envoie un SMS
+            if (phoneNumber) {
+                try {
+                    await SmsService.sendSms(phoneNumber, message);
+                    console.log(`SMS envoyé avec succès à ${phoneNumber}`);
+                } catch (error) {
+                    console.error('Erreur lors de l\'envoi du SMS:', error);
+                    // On ne relance pas l'erreur pour ne pas bloquer la transaction
+                }
             }
+
+            return notification;
+        } catch (error) {
+            console.error('Erreur lors de la création de la notification:', error);
+            throw error;
         }
     }
     static async executeTransaction(data, userId) {
@@ -99,12 +107,14 @@ class TransactionService {
                     await this.createNotification(
                         sender_id,
                         `Vous avez envoyé ${montant} à ${receiver.prenom} ${receiver.nom}. Nouveau solde: ${senderAccount.solde}`,
-                        'TRANSFERT_ENVOYE'
+                        'TRANSFERT_ENVOYE',
+                        sender.telephone // Ajout du numéro de téléphone
                     );
                     await this.createNotification(
                         recever_id,
                         `Vous avez reçu ${frais ? montant : montant - montantFrais} de ${sender.prenom} ${sender.nom}. Nouveau solde: ${receiverAccount.solde}`,
-                        'TRANSFERT_RECU'
+                        'TRANSFERT_RECU',
+                        receiver.telephone // Ajout du numéro de téléphone
                     );
                     break;
 
@@ -127,7 +137,8 @@ class TransactionService {
                     await this.createNotification(
                         recever_id,
                         `Vous avez reçu un dépôt de ${montant}. Nouveau solde: ${receiverAccount.solde}`,
-                        'DEPOT'
+                        'DEPOT',
+                        receiver.telephone // Ajout du numéro de téléphone
                     );
                     break;
 
@@ -150,7 +161,8 @@ class TransactionService {
                     await this.createNotification(
                         sender_id,
                         `Vous avez effectué un retrait de ${montant}. Nouveau solde: ${senderAccount.solde}`,
-                        'RETRAIT'
+                        'RETRAIT',
+                        sender.telephone // Ajout du numéro de téléphone
                     );
                     break;
 
