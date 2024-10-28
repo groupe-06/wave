@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            display: flex;
+            max-width: 1200px;
+            margin: 20px auto;
+            gap: 20px;
+        }
+
+        /* Style pour l'application mobile */
+        .mobile-app {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            width: 320px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .mobile-header {
+            margin-bottom: 20px;
+        }
+
+        .balance-cards {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .balance-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            flex: 1;
+        }
+
+        .graph {
+            background: #f8f9fa;
+            height: 200px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        /* Style pour l'interface desktop */
+        .desktop-interface {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            flex: 1;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .desktop-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .transaction-filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .filter-button {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            cursor: pointer;
+        }
+
+        .transactions-list {
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-info {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .amount {
+            font-weight: bold;
+        }
+
+        /* Style pour les cartes de paiement */
+        .payment-cards {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 25px;
+            background: #e0e0e0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Interface mobile -->
+        <div class="mobile-app">
+            <div class="mobile-header">
+                <h3>Mobile Banking</h3>
+            </div>
+            <div class="balance-cards">
+                <div class="balance-card">
+                    <small>Solde</small>
+                    <h3>$1,234.47</h3>
+                </div>
+                <div class="balance-card">
+                    <small>Dépenses</small>
+                    <h3>$945.98</h3>
+                </div>
+            </div>
+            <div class="graph"></div>
+        </div>
+
+        <!-- Interface desktop -->
+        <div class="desktop-interface">
+            <div class="desktop-header">
+                <h2>Transactions</h2>
+                <button class="filter-button">Ajouter une transaction</button>
+            </div>
+            
+            <div class="transaction-filters">
+                <button class="filter-button">Tous les comptes</button>
+                <button class="filter-button">Date</button>
+                <button class="filter-button">Catégorie</button>
+            </div>
+
+            <div class="transactions-list">
+                <div class="transaction-item">
+                    <div class="transaction-info">
+                        <div class="date">Nov 10</div>
+                        <div class="description">ATM Check Deposit</div>
+                    </div>
+                    <div class="amount">$500.00</div>
+                </div>
+                <div class="transaction-item">
+                    <div class="transaction-info">
+                        <div class="date">Nov 09</div>
+                        <div class="description">Street Energy</div>
+                    </div>
+                    <div class="amount">-$147.88</div>
+                </div>
+                <div class="transaction-item">
+                    <div class="transaction-info">
+                        <div class="date">Nov 08</div>
+                        <div class="description">CALIFORNIA WATER SERVICE</div>
+                    </div>
+                    <div class="amount">-$95.00</div>
+                </div>
+            </div>
+
+            <div class="payment-cards">
+                <div class="card-icon"></div>
+                <div class="card-icon"></div>
+                <div class="card-icon"></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

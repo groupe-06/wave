@@ -5,8 +5,10 @@ import Transaction from '../models/transaction.js';
 import TypeTransaction from '../models/typeTransaction.js';
 import Notification from '../models/notification.js';
 import  SmsService from  '../services/SmsService.js'
+import { WebSocket } from 'socket.io-client';
+import WebSocketService from '../services/WebSocketService.js'
 class TransactionService {
-    static async createNotification(userId, message, type, phoneNumber = null) {
+    static async createNotification(userId, message, type) {
         try {
             // Créer la notification dans la base de données
             const notification = new Notification({
@@ -18,15 +20,13 @@ class TransactionService {
             });
             await notification.save();
 
-            // Si un numéro de téléphone est fourni, on envoie un SMS
-            if (phoneNumber) {
-                try {
-                    await SmsService.sendSms(phoneNumber, message);
-                    console.log(`SMS envoyé avec succès à ${phoneNumber}`);
-                } catch (error) {
-                    console.error('Erreur lors de l\'envoi du SMS:', error);
-                    // On ne relance pas l'erreur pour ne pas bloquer la transaction
-                }
+            // Émettre la notification via WebSocket
+            const io = WebSocketService.getInstance();
+            if (io) {
+                io.to(`user-${userId}`).emit('new-notification', {
+                    notification,
+                    message: 'Nouvelle notification reçue'
+                });
             }
 
             return notification;
@@ -35,6 +35,7 @@ class TransactionService {
             throw error;
         }
     }
+
     static async executeTransaction(data, userId) {
         const session = await mongoose.startSession();
         session.startTransaction();

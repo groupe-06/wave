@@ -4,6 +4,7 @@ dotenv.config();
 
 class SmsService {
     constructor() {
+        console.log(process.env);
         this.validateEnvironmentVariables();
         this.client = twilio(
             process.env.TWILIO_ACCOUNT_SID,
@@ -18,6 +19,8 @@ class SmsService {
             'TWILIO_AUTH_TOKEN',
             'TWILIO_PHONE_NUMBER'
         ];
+       
+
 
         const missingVars = requiredVars.filter(varName => !process.env[varName]);
         if (missingVars.length > 0) {
@@ -77,27 +80,21 @@ class SmsService {
     }
 
     formatPhoneNumber(number) {
-        // Nettoyer le numéro
         let cleaned = number.replace(/\D/g, '');
         
-        // Gérer le cas où le numéro commence déjà par +221
-        if (cleaned.startsWith('221')) {
-            cleaned = cleaned; // Garder tel quel
-        } else if (cleaned.length === 9) {
-            cleaned = '221' + cleaned;
-        }
-        
-        // Ajouter le + si nécessaire
-        if (!cleaned.startsWith('+')) {
+        // Formatage avec le préfixe +221 si besoin
+        if (!cleaned.startsWith('221') && cleaned.length === 9) {
+            cleaned = '+221' + cleaned;
+        } else if (cleaned.startsWith('221') && !cleaned.startsWith('+')) {
             cleaned = '+' + cleaned;
         }
         
         return cleaned;
     }
-
+    
     isValidPhoneNumber(number) {
         // Vérification basique du format pour le Sénégal
-        const senegalRegex = /^\+221[7|3]\d{8}$/;
+        const senegalRegex = /^\+221[73]\d{7}$/;
         return senegalRegex.test(number);
     }
 

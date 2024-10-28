@@ -1,7 +1,34 @@
-// services/NotificationService.js
 import Notification from '../models/notification.js';
-
+import WebSocketService from '../services/WebSocketService.js'
 class NotificationService {
+    static async createNotification(userId, message, type) {
+        try {
+            // Créer la notification dans la base de données
+            const notification = new Notification({
+                compte: userId,
+                message,
+                type,
+                etat: false,
+                date: new Date()
+            });
+            await notification.save();
+
+            // Émettre la notification via WebSocket
+            const io = WebSocketService.getInstance();
+            if (io) {
+                io.to(`user-${userId}`).emit('new-notification', {
+                    notification,
+                    message: 'Nouvelle notification reçue'
+                });
+            }
+
+            return notification;
+        } catch (error) {
+            console.error('Erreur lors de la création de la notification:', error);
+            throw error;
+        }
+    }
+
     static async getUserNotifications(userId, query = {}) {
         try {
             // Récupérer les paramètres de pagination de la requête
@@ -46,8 +73,40 @@ class NotificationService {
             throw error;
         }
     }
+    static async getAllNotifications(query = {}) {
+        try {
+            const page = parseInt(query.page) || 1;
+            const limit = parseInt(query.limit) || 10;
+            const skip = (page - 1) * limit;
+    
+            const notifications = await Notification.find({})
+                .sort({ date: -1 })
+                .skip(skip)
+                .limit(limit)
+                .exec();
+    
+            const total = await Notification.countDocuments();
+            const totalPages = Math.ceil(total / limit);
+    
+            return {
+                success: true,
+                data: {
+                    notifications,
+                    pagination: {
+                        currentPage: page,
+                        totalPages,
+                        totalItems: total,
+                        itemsPerPage: limit
+                    }
+                }
+            };
+        } catch (error) {
+            console.error('Erreur lors de la récupération des notifications:', error);
+            throw error;
+        }
+    }
+    
 
-    // Méthode pour marquer une notification comme lue
     static async markAsRead(notificationId, userId) {
         try {
             const notification = await Notification.findOne({
@@ -62,6 +121,15 @@ class NotificationService {
             notification.etat = true;
             await notification.save();
 
+            // Émettre la mise à jour via WebSocket
+            const io = WebSocketService.getInstance();
+            if (io) {
+                io.to(`user-${userId}`).emit('notification-read', {
+                    notificationId,
+                    message: 'Notification marquée comme lue'
+                });
+            }
+
             return {
                 success: true,
                 message: "Notification marquée comme lue",
@@ -72,13 +140,20 @@ class NotificationService {
         }
     }
 
-    // Méthode pour marquer toutes les notifications d'un utilisateur comme lues
     static async markAllAsRead(userId) {
         try {
             const result = await Notification.updateMany(
                 { compte: userId, etat: false },
                 { $set: { etat: true } }
             );
+
+            // Émettre la mise à jour via WebSocket
+            const io = WebSocketService.getInstance();
+            if (io) {
+                io.to(`user-${userId}`).emit('all-notifications-read', {
+                    message: 'Toutes les notifications ont été marquées comme lues'
+                });
+            }
 
             return {
                 success: true,
@@ -88,6 +163,11 @@ class NotificationService {
         } catch (error) {
             throw error;
         }
+    }
+
+    // Méthode pour initier le service WebSocket
+    static initializeWebSocket(httpServer) {
+        WebSocketService.initialize(httpServer);
     }
 }
 

@@ -12,6 +12,16 @@ class NotificationController {
         }
     }
 
+    static async getAllNotifications(req, res) {
+        try {
+            const result = await NotificationService.getAllNotifications(req.query);
+            res.status(200).json(result);
+        } catch (error) {
+            res.status(400).json({ success: false, message: error.message });
+        }
+    }
+    
+    
     // Marquer une notification comme lue
     static async markAsRead(req, res) {
         try {
