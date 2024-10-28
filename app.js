@@ -7,6 +7,10 @@ import transactionClientRoute from "./routes/tranfertRoute.js";
 import userRoute from "./routes/userRoute.js";
 import compteRoute from "./routes/compteRoute.js";
 import adminRoute from "./routes/adminRoute.js";
+import deplafonRoute from "./routes/deplafonRoute.js"; 
+import transactionRoute from "./routes/listeTransaction.js"; 
+import changeCompteRoute from "./routes/changeCompteRoute.js";
+import updatePasswordRoute from "./routes/updatePasswordRoute.js";
 
 dotenv.config();
 
@@ -24,6 +28,11 @@ app.use(`${BASE_URI}/client`, transactionClientRoute);
 app.use(`${BASE_URI}/admin`, adminRoute);
 app.use(`${BASE_URI}/user`, userRoute);
 app.use(`${BASE_URI}/compte`, compteRoute);
+app.use(`${BASE_URI}/transactions`, transactionRoute);
+app.use(`${BASE_URI}/utilisateurs`, changeCompteRoute);
+app.use(`${BASE_URI}/user`, updatePasswordRoute);
+app.use(`${BASE_URI}/deplafonnement`, deplafonRoute);
+
 
 
 

@@ -1,9 +1,11 @@
-import express from "express";
-import { modifyStateAccount } from "../controllers/compteController.js";
-import { getToken } from "../middlewares/authMiddleware.js";
+// routes/compteRoute.js
 
-const compteRoute = express.Router();
+import express from 'express';
+import { modifyStateAccount } from '../controllers/compteController.js';
+import { getToken } from '../middlewares/authMiddleware.js';
 
-compteRoute.post("/modify-state", getToken, modifyStateAccount);
+const router = express.Router();
 
-export default compteRoute;
+router.patch('/:compteId/etat', getToken, modifyStateAccount);
+
+export default router;
