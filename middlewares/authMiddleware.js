@@ -24,5 +24,6 @@ export const getToken = (req, res, next) =>{
     } catch (error) {
         return res.status(401).json({ message: 'Invalid tokens' });
     }
+    
   
 }

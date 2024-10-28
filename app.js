@@ -5,6 +5,10 @@ import mongoDBConnexion from "./db/mongo-connexion.js";
 import typeTransactionRoute from "./routes/typeTransactionRoute.js";
 import userRoute from "./routes/userRoute.js";
 import compteRoute from "./routes/compteRoute.js";
+import deplafonRoute from "./routes/deplafonRoute.js"; 
+import transactionRoute from "./routes/listeTransaction.js"; 
+import changeCompteRoute from "./routes/changeCompteRoute.js";
+import updatePasswordRoute from "./routes/updatePasswordRoute.js";
 
 dotenv.config();
 
@@ -20,6 +24,11 @@ mongoDBConnexion();
 app.use(`${BASE_URI}/type-transaction`, typeTransactionRoute);
 app.use(`${BASE_URI}/user`, userRoute);
 app.use(`${BASE_URI}/compte`, compteRoute);
+app.use(`${BASE_URI}/transactions`, transactionRoute);
+app.use(`${BASE_URI}/utilisateurs`, changeCompteRoute);
+app.use(`${BASE_URI}/user`, updatePasswordRoute);
+app.use(`${BASE_URI}/deplafonnement`, deplafonRoute);
+
 
 app.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
