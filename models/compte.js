@@ -7,7 +7,7 @@ const compteSchema = new mongoose.Schema({
     soldeMaximum: Number,
     cummulTransactionMensuelle: Number,
     qrcode: {type: String, required: true},
-    etat: {type: String, enum: ['ACTIF', 'INACTIF', 'SUSPENDU'], default: 'ACTIF', required: true}
+    etat: {type: String, enum: ['ACTIF', 'INACTIF', 'SUSPENDU'], default: 'INACTIF', required: true}
 });
 
 const Compte = mongoose.model('Compte', compteSchema);
