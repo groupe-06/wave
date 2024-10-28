@@ -9,11 +9,11 @@ const createFakeUser = async () => {
         const user = new Utilisateur({
             nom: faker.person.lastName(),
             prenom: faker.person.firstName(),
-            telephone: faker.phone.number('06########'),
+            telephone: faker.phone.number(),
             cni: faker.string.alphanumeric(12),
-            mdp: faker.internet.password(),
-            role: faker.helpers.arrayElement(['CLIENT', 'MARCHAND', 'AGENT']),
-            photo: faker.image.avatar()
+            mdp: faker.internet.password('passer123'),
+            role: faker.helpers.arrayElement(['CLIENT', 'MARCHAND', 'AGENT','ADMIN']),
+            photoProfile: faker.image.avatar()
         });
         
         return await user.save();

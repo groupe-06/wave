@@ -11,12 +11,8 @@
   "author": "groupe6-tech",
   "license": "ISC",
   "dependencies": {
-<<<<<<< HEAD
     "@faker-js/faker": "^9.0.3",
-=======
     "bcrypt": "^5.1.1",
-    "cloudinary": "^2.5.1",
->>>>>>> 385b2422a40ea4ba2a17a6e4f9336706e0bef5c9
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
