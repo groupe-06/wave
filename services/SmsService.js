@@ -4,7 +4,7 @@ dotenv.config();
 
 class SmsService {
     constructor() {
-        console.log(process.env);
+        
         this.validateEnvironmentVariables();
         this.client = twilio(
             process.env.TWILIO_ACCOUNT_SID,
