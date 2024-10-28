@@ -10,6 +10,12 @@ export const updateUserRole = async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json({ message: "ID utilisateur invalide" });
         }
+            // Vérifier si l'utilisateur connecté est un admin
+    const adminUser = await Utilisateur.findById(req.userId); // On suppose que req.userId a été défini par votre middleware getToken
+
+    if (!adminUser || adminUser.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Accès refusé : seul un administrateur peut modifier l\'état d\'un compte.' });
+    }
 
         // Trouver l'utilisateur
         const utilisateur = await Utilisateur.findById(userId);

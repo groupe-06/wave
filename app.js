@@ -8,6 +8,8 @@ import compteRoute from "./routes/compteRoute.js";
 import deplafonRoute from "./routes/deplafonRoute.js"; 
 import transactionRoute from "./routes/listeTransaction.js"; 
 import changeCompteRoute from "./routes/changeCompteRoute.js";
+import updatePasswordRoute from "./routes/updatePasswordRoute.js";
+
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
@@ -22,9 +24,10 @@ mongoDBConnexion();
 app.use(`${BASE_URI}/type-transaction`, typeTransactionRoute);
 app.use(`${BASE_URI}/user`, userRoute);
 app.use(`${BASE_URI}/compte`, compteRoute);
-app.use(`${BASE_URI}/comptes`, deplafonRoute);
 app.use(`${BASE_URI}/transactions`, transactionRoute);
 app.use(`${BASE_URI}/utilisateurs`, changeCompteRoute);
+app.use(`${BASE_URI}/user`, updatePasswordRoute);
+app.use(`${BASE_URI}/deplafonnement`, deplafonRoute);
 
 
 app.listen(PORT, () => {

@@ -1,9 +1,15 @@
-import express from "express";
-import { deplafonnerCompte } from "../controllers/deplafonController.js";
+
+// deplafonRoute.js
+import express from 'express';
+import { requestDeplafonnement, validateDeplafonnement } from '../controllers/deplafonController.js';
+import { getToken } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Route pour déplafonner un compte
-router.put("/deplafonner", deplafonnerCompte);
+// Client requests deplafonnement
+router.post('/request', getToken, requestDeplafonnement);
+
+// Admin validates deplafonnement
+router.post('/validate/:requestId', getToken, validateDeplafonnement);
 
 export default router;

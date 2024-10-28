@@ -10,7 +10,7 @@ export const modifyStateAccount = async (req, res) => {
     if (!['ACTIF', 'INACTIF'].includes(etat)) {
         return res.status(400).json({ message: 'Etat invalide. Utilisez "ACTIF" ou "INACTIF"' });
     }
-
+ 
     try {
         const compte = await Compte.findByIdAndUpdate(
             compteId,

@@ -1,9 +1,10 @@
 import express from 'express';
 import { updateUserRole } from '../controllers/changeCompteController.js';
+import { getToken } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Endpoint pour mettre à jour le rôle d'un utilisateur
-router.put('/:userId/role', updateUserRole);
+router.patch('/:userId/role', getToken, updateUserRole);
+
 
 export default router;
