@@ -11,7 +11,7 @@ export const createUser = async(req, res) => {
         const { nom, prenom, telephone, mdp, confirmMdp, role } = req.body;
         const file = req.file; 
 
-        if (!nom || !prenom || !telephone ||!mdp, role) {
+        if (!nom || !prenom || !telephone ||!mdp, !role) {
             return res.status(400).json({ message: 'Les champs nom, prenom, telephone, role, mot de passe et confirmation du mot de passe sont obligatoires' });
         }
 
@@ -49,7 +49,7 @@ export const createUser = async(req, res) => {
             codeDeVerification = await generateUniqueCode();
             etat = 'INACTIF';
             premiereConnexion = true;
-            await sendSMS(`+221${telephone}`, `Votre code de verification est: ${codeDeVerification}`);
+            await sendSMS(`+221${telephone}`, `Votre code de verification pour activer votre compte: ${codeDeVerification}`);
         }
 
         let soldeMaximum;
@@ -83,7 +83,7 @@ export const login = async (req, res) => {
         // Vérifier si le compte est actif
         const compte = await Compte.findOne({ utilisateur: user._id });
         if (!compte || compte.etat !== 'ACTIF') {
-            return res.status(403).json({ message: 'Compte inactif, veuillez contacter l\'administration' });
+            return res.status(403).json({ message: 'Compte inactif, veuillez mettre votre code de verification' });
         }
         const isMatch = await bcrypt.compare(mdp.trim(), user.mdp);
         if (!isMatch) {
@@ -95,7 +95,7 @@ export const login = async (req, res) => {
         }   
         const token = await generateToken(user);
 
-        const {mdp, codeDeVerification: _, ...userWithoutPassword} = user;
+        const {mdp: mdp_, codeDeVerification: cv_, ...userWithoutPassword} = user;
         const data = {...userWithoutPassword, token};        
         
         return res.status(200).json({ message: 'User Logged in successfully', data});
@@ -142,7 +142,7 @@ export const regenerateVerificationCode = async(req, res) => {
         const codeDeVerification = await generateUniqueCode();
         user.codeDeVerification = codeDeVerification;
         await user.save();
-        await sendSMS(`+221${telephone}`, `Votre code de verification est: ${codeDeVerification}`);
+        await sendSMS(`+221${telephone}`, `Votre code de verification pour activer votre compte : ${codeDeVerification}`);
 
         return res.status(200).json({ message: 'Code de vérification regeneré avec succès', user });
     } catch (error) {
@@ -152,9 +152,10 @@ export const regenerateVerificationCode = async(req, res) => {
 }
 
 export const activeAccountWithVerificationCode = async (req, res) => {
-    const { codeDeVerification } = req.body;
+    let { codeDeVerification } = req.body;
 
     try {
+        codeDeVerification = Number(codeDeVerification);
         if(!codeDeVerification){
             return res.status(400).json({ message: 'Le code de vérification est obligatoire' });
         }
