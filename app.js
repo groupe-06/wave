@@ -57,6 +57,7 @@ app.use(`${BASE_URI}/utilisateurs`, changeCompteRoute);
 app.use(`${BASE_URI}/user`, updatePasswordRoute);
 app.use(`${BASE_URI}/deplafonnement`, deplafonRoute);
 
+console.log("Bonjour...");
 
 
 
