@@ -95,7 +95,7 @@ export const login = async (req, res) => {
         }   
         const token = await generateToken(user);
 
-        const {mdp, codeDeVerification: _, ...userWithoutPassword} = user;
+        const { codeDeVerification: _, ...userWithoutPassword} = user;
         const data = {...userWithoutPassword, token};        
         
         return res.status(200).json({ message: 'User Logged in successfully', data});

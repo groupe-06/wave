@@ -24,6 +24,21 @@ export const getToken = (req, res, next) =>{
     } catch (error) {
         return res.status(401).json({ message: 'Invalid tokens' });
     }
+    const jwt = require('jsonwebtoken');
+
+module.exports = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'Accès refusé' });
+
+    try {
+        const decoded = jwt.verify(token, 'SECRET_KEY');
+        req.userId = decoded.userId;
+        next();
+    } catch (error) {
+        res.status(403).json({ message: 'Token invalide', error });
+    }
+};
+
     
   
 }
