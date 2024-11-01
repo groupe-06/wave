@@ -34,8 +34,15 @@ const io = new Server(httpServer, {
         methods: ["GET", "POST"]
     }
 });
+const corsOptions = {
+    origin: 'http://localhost:4200', // URL exacte de votre frontend Angular
+    credentials: true, // Autoriser les credentials
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  };
+  
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 mongoDBConnexion();

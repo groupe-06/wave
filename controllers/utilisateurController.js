@@ -151,6 +151,7 @@ export const regenerateVerificationCode = async(req, res) => {
     }
 }
 
+
 export const activeAccountWithVerificationCode = async (req, res) => {
     let { codeDeVerification } = req.body;
 
@@ -197,3 +198,16 @@ export const faireDemandeDepot = async(req, res) =>{
         return res.status(500).json({ message: "Erreur lors de la demande de dépot", error: error.message });
     }
 } 
+
+export const getUserIdByPhone = async (telephone) => {
+    try {
+        const user = await Utilisateur.findOne({ telephone }).select('_id').lean();
+        if (!user) {
+            throw new Error('Utilisateur introuvable avec ce numéro de téléphone');
+        }
+        return user._id;
+    } catch (error) {
+        console.error('Erreur lors de la récupération de l\'ID utilisateur :', error);
+        throw error;
+    }
+};
