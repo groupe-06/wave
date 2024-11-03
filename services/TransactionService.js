@@ -7,6 +7,7 @@ import Notification from '../models/notification.js';
 import WebSocketService from '../services/WebSocketService.js';
 import { getUserIdByPhone } from '../controllers/utilisateurController.js';
 import sendSMS from '../utils/sendSms.js';
+import ScheduledTransaction from '../models/scheduledTransaction.js';
 class TransactionService {
     static async createNotification(userId, message, type, telephoneNumber) {
         try {
@@ -27,7 +28,7 @@ class TransactionService {
                 });
             }
 
-            await sendSMS(telephoneNumber, message);
+          /*   await sendSMS(telephoneNumber, message); */
 
             return notification;
         } catch (error) {
@@ -43,7 +44,6 @@ class TransactionService {
         try {
             const { montant, sender_telephone, recever_telephone, transaction, frais = null } = data;
 
-            // Vérification du montant
             if (!Number.isInteger(montant)) {
                 throw new Error("Le montant doit être un nombre entier");
             }
@@ -55,28 +55,34 @@ class TransactionService {
             let montantFrais = 0;
             let senderId, receiverId;
             const connectedUser = await Utilisateur.findById(userId);
-           /*  if (senderId ===receiverId) {
-                throw new Error("vous ne pouvez pas faire de transaction à vous même ");
-            } */
+
             switch (transaction.toLowerCase()) {
                 case 'transfert':
-                    // Le sender est l'utilisateur connecté
                     senderId = userId;
-                    // Récupérer le ID du receiver à partir du numéro de téléphone
                     receiverId = await getUserIdByPhone(recever_telephone);
                     if (senderId.toString() === receiverId.toString()) {
                         throw new Error("Vous ne pouvez pas faire de transaction à vous-même");
                     }
                     break;
 
+                case 'payement':
+                    senderId = userId;
+                    receiverId = await getUserIdByPhone(recever_telephone);
+                    // Vérifier si le destinataire est un marchand
+                    const receiverUser = await Utilisateur.findById(receiverId);
+                    if (!receiverUser || receiverUser.role !== 'MARCHAND') {
+                        throw new Error("Le destinataire doit être un marchand pour recevoir un paiement");
+                    }
+                    if (senderId.toString() === receiverId.toString()) {
+                        throw new Error("Vous ne pouvez pas faire de paiement à vous-même");
+                    }
+                    break;
+
                 case 'depot':
-                    // Le sender est l'utilisateur connecté et doit être AGENT ou ADMIN
-                    const connectedUser = await Utilisateur.findById(userId);
                     if (connectedUser.role !== 'AGENT' && connectedUser.role !== 'ADMIN') {
                         throw new Error("Seuls les agents et les administrateurs peuvent effectuer un dépôt");
                     }
                     senderId = userId;
-                    // Récupérer le ID du receiver à partir du numéro de téléphone
                     receiverId = await getUserIdByPhone(recever_telephone);
                     if (senderId.toString() === receiverId.toString()) {
                         throw new Error("Vous ne pouvez pas faire de dépôt à vous-même");
@@ -84,12 +90,9 @@ class TransactionService {
                     break;
 
                 case 'retrait':
-                    // Récupérer le ID du sender à partir du numéro de téléphone
                     senderId = await getUserIdByPhone(sender_telephone);
-                    // Le receiver est l'utilisateur connecté et doit être AGENT ou ADMIN
                     receiverId = userId;
-                    const receiver = await Utilisateur.findById(receiverId);
-                    if (receiver.role !== 'AGENT' && receiver.role !== 'ADMIN') {
+                    if (connectedUser.role !== 'AGENT' && connectedUser.role !== 'ADMIN') {
                         throw new Error("Seuls les agents et les administrateurs peuvent effectuer un retrait");
                     }
                     if (senderId.toString() === receiverId.toString()) {
@@ -101,11 +104,9 @@ class TransactionService {
                     throw new Error("Type de transaction non supporté");
             }
 
-            // Récupération des comptes
             const senderAccount = await Compte.findOne({ utilisateur: senderId, etat: 'ACTIF' }).populate('utilisateur');
             const receiverAccount = await Compte.findOne({ utilisateur: receiverId, etat: 'ACTIF' }).populate('utilisateur');
 
-            // Récupérer le type de transaction
             const typeTransaction = await TypeTransaction.findOne({ nom: transaction.toLowerCase() });
             if (!typeTransaction) {
                 throw new Error("Type de transaction invalide");
@@ -121,30 +122,45 @@ class TransactionService {
                         if (senderAccount.solde < totalADebiter) {
                             throw new Error(`Solde insuffisant. Vous avez ${senderAccount.solde} mais il faut ${totalADebiter}`);
                         }
-
                         senderAccount.solde -= totalADebiter;
                         receiverAccount.solde += montant;
                     } else {
                         if (senderAccount.solde < montant) {
                             throw new Error(`Solde insuffisant. Vous avez ${senderAccount.solde} mais il faut ${montant}`);
                         }
-
                         senderAccount.solde -= montant;
                         receiverAccount.solde += (montant - montantFrais);
                     }
 
-                    // Notifications pour le transfert
                     await this.createNotification(
                         senderId,
                         `Vous avez envoyé ${montant} à ${receiverAccount.utilisateur.prenom} ${receiverAccount.utilisateur.nom}. Nouveau solde: ${senderAccount.solde}`,
-                        'TRANSFERT_ENVOYE',
-                        senderAccount.utilisateur.telephone
+                        'TRANSFERT_ENVOYE'
                     );
                     await this.createNotification(
                         receiverId,
                         `Vous avez reçu ${frais ? montant : montant - montantFrais} de ${senderAccount.utilisateur.prenom} ${senderAccount.utilisateur.nom}. Nouveau solde: ${receiverAccount.solde}`,
-                        'TRANSFERT_RECU',
-                        receiverAccount.utilisateur.telephone
+                        'TRANSFERT_RECU'
+                    );
+                    break;
+
+                case 'payement':
+                    if (senderAccount.solde < montant) {
+                        throw new Error(`Solde insuffisant. Vous avez ${senderAccount.solde} mais il faut ${montant}`);
+                    }
+
+                    senderAccount.solde -= montant;
+                    receiverAccount.solde += montant;
+
+                    await this.createNotification(
+                        senderId,
+                        `Vous avez effectué un paiement de ${montant} à ${receiverAccount.utilisateur.prenom} ${receiverAccount.utilisateur.nom}. Nouveau solde: ${senderAccount.solde}`,
+                        'PAYMENT_ENVOYE'
+                    );
+                    await this.createNotification(
+                        receiverId,
+                        `Vous avez reçu un paiement de ${montant} de ${senderAccount.utilisateur.prenom} ${senderAccount.utilisateur.nom}. Nouveau solde: ${receiverAccount.solde}`,
+                        'PAYMENT_RECU'
                     );
                     break;
 
@@ -156,12 +172,10 @@ class TransactionService {
                     senderAccount.solde -= montant;
                     receiverAccount.solde += montant;
 
-                    // Notification pour le dépôt
                     await this.createNotification(
                         receiverId,
                         `Vous avez reçu un dépôt de ${montant}. Nouveau solde: ${receiverAccount.solde}`,
-                        'DEPOT',
-                        receiverAccount.utilisateur.telephone
+                        'DEPOT'
                     );
                     break;
 
@@ -173,28 +187,24 @@ class TransactionService {
                     senderAccount.solde -= montant;
                     receiverAccount.solde += montant;
 
-                    // Notification pour le retrait
                     await this.createNotification(
                         senderId,
                         `Vous avez effectué un retrait de ${montant}. Nouveau solde: ${senderAccount.solde}`,
-                        'RETRAIT',
-                        senderAccount.utilisateur.telephone
+                        'RETRAIT'
                     );
                     break;
             }
 
-            // Sauvegarder les modifications des comptes
             await senderAccount.save({ session });
             await receiverAccount.save({ session });
 
-            // Créer la transaction
             const newTransaction = new Transaction({
                 receiver: receiverAccount._id,
                 sender: senderAccount._id,
                 montant,
                 etat: 'SUCCES',
                 TypeTransaction: typeTransaction._id,
-                fraisInclus: frais,
+                fraisInclus: transaction.toLowerCase() === 'payment' ? false : frais,
                 montantFrais
             });
             await newTransaction.save({ session });
@@ -206,12 +216,12 @@ class TransactionService {
                 message: "Transaction effectuée avec succès",
                 transaction: newTransaction,
                 details: {
-                    soldeInitialSender: senderAccount.solde + (frais ? montant + montantFrais : montant),
+                    soldeInitialSender: senderAccount.solde + (transaction.toLowerCase() === 'payment' ? montant : (frais ? montant + montantFrais : montant)),
                     soldeFinalSender: senderAccount.solde,
-                    soldeInitialReceiver: receiverAccount.solde - (frais ? montant : montant - montantFrais),
+                    soldeInitialReceiver: receiverAccount.solde - (transaction.toLowerCase() === 'payment' ? montant : (frais ? montant : montant - montantFrais)),
                     soldeFinalReceiver: receiverAccount.solde,
                     montantFrais,
-                    fraisPayesPar: frais ? "sender" : "receiver"
+                    fraisPayesPar: transaction.toLowerCase() === 'payment' ? "aucun" : (frais ? "sender" : "receiver")
                 }
             };
 
@@ -289,14 +299,14 @@ class TransactionService {
                 senderAccount.utilisateur._id,
                 `Annulation reçue : le transfert de ${transaction.montant} a été annulé. Nouveau solde: ${senderAccount.solde}`,
                 'TRANSFERT_ANNULE',
-                senderAccount.utilisateur.telephone
+              /*   senderAccount.utilisateur.telephone */
             );
 
             await this.createNotification(
                 receiverAccount.utilisateur._id,
                 `Annulation du transfert de ${transaction.montant} reçu de ${senderAccount.utilisateur.prenom} ${senderAccount.utilisateur.nom}. Nouveau solde: ${receiverAccount.solde}`,
                 'TRANSFERT_ANNULE',
-                receiverAccount.utilisateur.telephone
+                /* receiverAccount.utilisateur.telephone */
             );
 
             await session.commitTransaction();
@@ -319,6 +329,313 @@ class TransactionService {
             session.endSession();
         }
     }
+    static async getUserSuccessfulTransfers(userId) {
+        try {
+            // Recherche des transactions où le sender est l'utilisateur, le type est "transfert" et l'état est "SUCCES"
+            const transactions = await Transaction.find({
+                sender: userId,
+                TypeTransaction: await TypeTransaction.findOne({ nom: 'transfert' }).select('_id'),
+                etat: 'SUCCES'
+            }).populate('receiver', 'prenom nom').populate('TypeTransaction', 'nom');
+
+            return transactions;
+        } catch (error) {
+            console.error('Erreur lors de la récupération des transactions:', error);
+            throw error;
+        }
+    }
+    static async executeMassTransaction(data, userId) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+    
+        try {
+            const { montant, receiver_ids, transaction, frais = null } = data;
+            
+            // Validations de base
+            if (!Array.isArray(receiver_ids) || receiver_ids.length === 0) {
+                throw new Error("La liste des destinataires est requise et ne peut pas être vide");
+            }
+            
+            if (!Number.isInteger(montant)) {
+                throw new Error("Le montant doit être un nombre entier");
+            }
+    
+            if (montant <= 0) {
+                throw new Error("Le montant doit être un nombre positif");
+            }
+    
+            // Récupérer le compte émetteur
+            const senderAccount = await Compte.findOne({ 
+                utilisateur: userId, 
+                etat: 'ACTIF' 
+            }).populate('utilisateur');
+    
+            if (!senderAccount) {
+                throw new Error("Compte émetteur non trouvé ou inactif");
+            }
+    
+            // Calculer le montant total nécessaire
+            const tauxFrais = 0.01;
+            const montantFraisParTransaction = Math.round(montant * tauxFrais);
+            const montantTotalFrais = montantFraisParTransaction * receiver_ids.length;
+            const montantTotalNecessaire = (montant * receiver_ids.length) + 
+                (frais ? montantTotalFrais : 0);
+    
+            // Vérification stricte du solde
+            if (senderAccount.solde < montantTotalNecessaire) {
+                throw new Error(`Solde insuffisant. Vous avez ${senderAccount.solde} mais il faut ${montantTotalNecessaire} pour effectuer tous les transferts`);
+            }
+    
+            const transactions = [];
+            const typeTransaction = await TypeTransaction.findOne({ 
+                nom: transaction.toLowerCase() 
+            });
+    
+            // Exécuter chaque transfert
+            for (const receiverId of receiver_ids) {
+                // Vérifier que ce n'est pas un transfert à soi-même
+                if (userId.toString() === receiverId.toString()) {
+                    continue;
+                }
+    
+                const receiverAccount = await Compte.findOne({ 
+                    utilisateur: receiverId, 
+                    etat: 'ACTIF' 
+                }).populate('utilisateur');
+    
+                if (!receiverAccount) {
+                    continue; // Passer au destinataire suivant si le compte n'est pas trouvé
+                }
+    
+                // Mettre à jour les soldes
+                if (frais) {
+                    senderAccount.solde -= (montant + montantFraisParTransaction);
+                    receiverAccount.solde += montant;
+                } else {
+                    senderAccount.solde -= montant;
+                    receiverAccount.solde += (montant - montantFraisParTransaction);
+                }
+    
+                await receiverAccount.save({ session });
+    
+                // Créer la transaction
+                const newTransaction = new Transaction({
+                    receiver: receiverAccount._id,
+                    sender: senderAccount._id,
+                    montant,
+                    etat: 'SUCCES',
+                    TypeTransaction: typeTransaction._id,
+                    fraisInclus: frais,
+                    montantFrais: montantFraisParTransaction
+                });
+                
+                await newTransaction.save({ session });
+                transactions.push(newTransaction);
+    
+                // Créer les notifications
+                await this.createNotification(
+                    userId,
+                    `Vous avez envoyé ${montant} à ${receiverAccount.utilisateur.prenom} ${receiverAccount.utilisateur.nom}`,
+                    'TRANSFERT_ENVOYE'
+                );
+                
+                await this.createNotification(
+                    receiverId,
+                    `Vous avez reçu ${frais ? montant : montant - montantFraisParTransaction} de ${senderAccount.utilisateur.prenom} ${senderAccount.utilisateur.nom}`,
+                    'TRANSFERT_RECU'
+                );
+            }
+    
+            await senderAccount.save({ session });
+            await session.commitTransaction();
+    
+            return {
+                success: true,
+                message: `${transactions.length} transferts effectués avec succès`,
+                transactions,
+                details: {
+                    soldeInitial: senderAccount.solde + montantTotalNecessaire,
+                    soldeFinal: senderAccount.solde,
+                    montantTotalFrais,
+                    fraisPayesPar: frais ? "sender" : "receiver",
+                    transfertsReussis: transactions.length,
+                    transfertsPrevus: receiver_ids.length
+                }
+            };
+    
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
+        }
+    }
+    static async scheduleTransaction(data, userId) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+    
+        try {
+            const { 
+                receiver_ids, 
+                montant, 
+                dateExecution, 
+                recurring = false, 
+                frequence,
+                frais = false 
+            } = data;
+    
+            // Validations
+            if (new Date(dateExecution) < new Date()) {
+                throw new Error("La date d'exécution doit être dans le futur");
+            }
+    
+            if (recurring && !['DAILY', 'WEEKLY', 'MONTHLY'].includes(frequence)) {
+                throw new Error("Fréquence de récurrence invalide");
+            }
+    
+            // Vérifier le solde actuel
+            const senderAccount = await Compte.findOne({ 
+                utilisateur: userId, 
+                etat: 'ACTIF' 
+            });
+    
+            if (!senderAccount) {
+                throw new Error("Compte émetteur non trouvé ou inactif");
+            }
+    
+            // Calculer le montant total nécessaire
+            const tauxFrais = 0.01;
+            const montantFraisParTransaction = Math.round(montant * tauxFrais);
+            const montantTotalFrais = montantFraisParTransaction * receiver_ids.length;
+            const montantTotalNecessaire = (montant * receiver_ids.length) + 
+                (frais ? montantTotalFrais : 0);
+    
+            // Vérifier si le solde est suffisant
+            if (senderAccount.solde < montantTotalNecessaire) {
+                throw new Error(`Solde insuffisant pour programmer ce transfert. Vous avez ${senderAccount.solde} mais il faut ${montantTotalNecessaire}`);
+            }
+    
+            // Créer le transfert programmé
+            const scheduledTransaction = new ScheduledTransaction({
+                sender: userId,
+                receiver_ids,
+                montant,
+                dateExecution,
+                recurring,
+                frequence,
+                frais,
+                statut: 'PENDING',
+                derniereSoldeVerification: senderAccount.solde
+            });
+    
+            await scheduledTransaction.save({ session });
+            await session.commitTransaction();
+    
+            return {
+                success: true,
+                message: "Transfert programmé avec succès",
+                scheduledTransaction
+            };
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
+        }
+    }
+    
+    // Fonction pour exécuter les transferts programmés
+    static async executeScheduledTransactions() {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+    
+        try {
+            // Récupérer tous les transferts programmés en attente
+            const now = new Date();
+            const pendingTransactions = await ScheduledTransaction.find({
+                statut: 'PENDING',
+                dateExecution: { $lte: now }
+            });
+    
+            for (const scheduledTx of pendingTransactions) {
+                try {
+                    // Vérifier à nouveau le solde avant l'exécution
+                    const senderAccount = await Compte.findOne({ 
+                        utilisateur: scheduledTx.sender, 
+                        etat: 'ACTIF' 
+                    });
+    
+                    const tauxFrais = 0.01;
+                    const montantFraisParTransaction = Math.round(scheduledTx.montant * tauxFrais);
+                    const montantTotalFrais = montantFraisParTransaction * scheduledTx.receiver_ids.length;
+                    const montantTotalNecessaire = (scheduledTx.montant * scheduledTx.receiver_ids.length) + 
+                        (scheduledTx.frais ? montantTotalFrais : 0);
+    
+                    if (!senderAccount || senderAccount.solde < montantTotalNecessaire) {
+                        scheduledTx.statut = 'FAILED';
+                        await scheduledTx.save({ session });
+                        continue;
+                    }
+    
+                    // Exécuter le transfert en masse
+                    await this.executeMassTransaction({
+                        montant: scheduledTx.montant,
+                        receiver_ids: scheduledTx.receiver_ids,
+                        transaction: 'transfert',
+                        frais: scheduledTx.frais
+                    }, scheduledTx.sender);
+    
+                    scheduledTx.statut = 'EXECUTED';
+    
+                    // Si récurrent, programmer le prochain transfert
+                    if (scheduledTx.recurring) {
+                        const nextDate = new Date(scheduledTx.dateExecution);
+                        switch (scheduledTx.frequence) {
+                            case 'DAILY':
+                                nextDate.setDate(nextDate.getDate() + 1);
+                                break;
+                            case 'WEEKLY':
+                                nextDate.setDate(nextDate.getDate() + 7);
+                                break;
+                            case 'MONTHLY':
+                                nextDate.setMonth(nextDate.getMonth() + 1);
+                                break;
+                        }
+    
+                        const newScheduledTx = new ScheduledTransaction({
+                            sender: scheduledTx.sender,
+                            receiver_ids: scheduledTx.receiver_ids,
+                            montant: scheduledTx.montant,
+                            dateExecution: nextDate,
+                            recurring: scheduledTx.recurring,
+                            frequence: scheduledTx.frequence,
+                            frais: scheduledTx.frais,
+                            statut: 'PENDING',
+                            derniereSoldeVerification: senderAccount.solde
+                        });
+                        await newScheduledTx.save({ session });
+                    }
+                } catch (error) {
+                    scheduledTx.statut = 'FAILED';
+                    // Envoyer une notification à l'utilisateur pour l'échec
+                    await this.createNotification(
+                        scheduledTx.sender,
+                        `Le transfert programmé de ${scheduledTx.montant} a échoué: ${error.message}`,
+                        'TRANSFERT_PROGRAMME_ECHEC'
+                    );
+                }
+    
+                await scheduledTx.save({ session });
+            }
+    
+            await session.commitTransaction();
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
+        }
+        }
 }
 
 export default TransactionService;

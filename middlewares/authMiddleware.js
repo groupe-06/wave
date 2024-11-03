@@ -27,3 +27,14 @@ export const getToken = (req, res, next) =>{
     
   
 }
+// middlewares/roleMiddleware.js
+export const isAdmin = (req, res, next) => {
+    if (req.user && (req.user.role === 'ADMIN' || req.user.role === 'AGENT')) {
+        next();
+    } else {
+        res.status(403).json({
+            success: false,
+            message: "Accès non autorisé"
+        });
+    }
+};
