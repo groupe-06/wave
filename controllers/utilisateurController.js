@@ -95,7 +95,7 @@ export const login = async (req, res) => {
         }   
         const token = await generateToken(user);
 
-        const {mdp: mdp_, codeDeVerification: cv_, ...userWithoutPassword} = user;
+        const { codeDeVerification: _, ...userWithoutPassword} = user;
         const data = {...userWithoutPassword, token};        
         
         return res.status(200).json({ message: 'User Logged in successfully', data});
@@ -197,3 +197,33 @@ export const faireDemandeDepot = async(req, res) =>{
         return res.status(500).json({ message: "Erreur lors de la demande de dépot", error: error.message });
     }
 } 
+
+export const getCompteByUser = async (req, res) => {
+    const userId = req.userId; // ID de l'utilisateur connecté extrait du token
+
+    try {
+        const compte = await Compte.findOne({ utilisateur: userId });
+        
+        if (!compte) {
+            return res.status(404).json({ message: 'Compte non trouvé pour cet utilisateur' });
+        }
+
+        return res.status(200).json({ message: 'Compte récupéré avec succès', data: compte });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Erreur lors de la récupération du compte', error });
+    }
+};
+
+export const getUserIdByPhone = async (telephone) => {
+    try {
+        const user = await Utilisateur.findOne({ telephone }).select('_id').lean();
+        if (!user) {
+            throw new Error('Utilisateur introuvable avec ce numéro de téléphone');
+        }
+        return user._id;
+    } catch (error) {
+        console.error('Erreur lors de la récupération de l\'ID utilisateur :', error);
+        throw error;
+    }
+};

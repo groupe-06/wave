@@ -17,6 +17,7 @@ import deplafonRoute from "./routes/deplafonRoute.js";
 import transactionRoute from "./routes/listeTransaction.js"; 
 import changeCompteRoute from "./routes/changeCompteRoute.js";
 import updatePasswordRoute from "./routes/updatePasswordRoute.js";
+import transRoute from "./routes/transRoute.js";
 
 dotenv.config();
 
@@ -24,18 +25,18 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 const BASE_URI = process.env.BASE_URI ;
 
+app.use(cors({ origin: '*', methods: ["GET", "POST"] }));
 // Créer un serveur HTTP à partir de l'app Express
 const httpServer = createServer(app);
 
 // Configurer Socket.IO avec CORS
 const io = new Server(httpServer, {
     cors: {
-        origin: "*", // À adapter selon vos besoins de sécurité
+        origin: "*", 
         methods: ["GET", "POST"]
     }
 });
 
-app.use(cors());
 app.use(express.json());
 
 mongoDBConnexion();
@@ -58,6 +59,9 @@ app.use(`${BASE_URI}/user`, updatePasswordRoute);
 app.use(`${BASE_URI}/deplafonnement`, deplafonRoute);
 
 console.log("Bonjour...");
+
+app.use(`${BASE_URI}/transaction`, transRoute);
+
 
 
 

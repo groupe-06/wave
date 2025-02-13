@@ -3,6 +3,7 @@ import TypeTransaction from "../models/typeTransaction.js";
 import Compte from '../models/compte.js';
 import Utilisateur from '../models/utilisateur.js';
 import DemandeAnnulation from '../models/demandeAnnulation.js';
+import NotificationService from "../services/NotificationService.js";
 import mongoose from 'mongoose';
 
 
@@ -37,6 +38,13 @@ export const transactionClient = async (req, res) => {
         
         if (!receiverId ||!montant) {
             throw new Error("Id du destinataire et le montant obligatoires");
+        }
+        
+        const sender = await Utilisateur.findById(userId).session(session);
+       
+
+        if (!sender) {
+            throw new Error("Expéditeur non trouvé");
         }
         
         const senderAccount = await Compte.findOne({ utilisateur: userId }).session(session);
@@ -89,7 +97,8 @@ export const transactionClient = async (req, res) => {
         await transaction.save({ session });
         await senderAccount.save({ session });
         await receiverAccount.save({ session });
-
+        NotificationService.createNotification(receiverAccount, `vous avez recu un transfert de  + ${sender.prenom},${sender.telephone}`,'TRANSFERT_RECU', );
+        NotificationService.createNotification(userId, `vous avez envoyee un montant de ${montantTotal}`,'TRANSFERT_ENVOYE');
         // Validation de la transaction
         await session.commitTransaction();
 
@@ -129,7 +138,7 @@ export const getAllTransactionsClients = async (req, res) => {
             throw new Error("Accès non autorisé");
         }
 
-        const compte = await Compte.findOne({ utilisateur: userId });
+        const compte = await Compte.findOne({ utilisateur: userId },'solde soldeMaximum');
         if (!compte) {
             throw new Error("Compte non trouvé");
         }
@@ -140,8 +149,14 @@ export const getAllTransactionsClients = async (req, res) => {
                 { receiver: compte._id }  
             ]
         } )
-        .populate('receiver', 'solde')
-        .populate('sender', 'solde')
+        .populate({
+            path: 'receiver',
+            select: 'solde soldeMaximum'
+          })
+          .populate({
+            path: 'sender',
+            select: 'solde soldeMaximum'
+          })
         .populate('TypeTransaction')
         .sort({ date: -1 });
         console.log(transactions);
